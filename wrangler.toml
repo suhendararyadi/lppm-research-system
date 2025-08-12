@@ -1,0 +1,21 @@
+name = "lppm-research-system"
+main = "workers/auth.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "lppm-research-db"
+database_id = "c358bbda-a395-4a35-8ddb-cda80d594d00"
+
+# KV Storage
+[[kv_namespaces]]
+binding = "CACHE"
+id = "220cff7124574b8c877bca9230f72e6a"
+
+# Environment Variables
+[vars]
+JWT_SECRET = "your-jwt-secret-key"
+ENCRYPTION_KEY = "your-encryption-key"
+ENVIRONMENT = "development"
