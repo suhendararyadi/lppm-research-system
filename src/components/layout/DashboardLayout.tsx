@@ -4,16 +4,18 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth';
 import { Header } from './Header';
-import { Sidebar } from './Sidebar';
-import { Toaster } from '@/components/ui/sonner';
+import { AppSidebar } from './AppSidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title?: string;
+  className?: string;
 }
 
-export function DashboardLayout({ children, title }: DashboardLayoutProps) {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+export function DashboardLayout({ children, title, className }: DashboardLayoutProps) {
+  const { user, isAuthenticated, checkAuth } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,50 +23,34 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   }, [checkAuth]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isAuthenticated) {
       router.push('/auth/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, router]);
 
-  if (isLoading) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
+        <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm text-muted-foreground">Memuat...</p>
+          <p className="mt-2 text-sm text-muted-foreground">Memuat...</p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
-    return null; // Will redirect to login
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <div className="hidden w-64 flex-col border-r bg-background md:flex">
-          <Sidebar />
-        </div>
-        
-        {/* Main Content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header title={title} />
-          
-          {/* Page Content */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="container mx-auto px-4 py-6">
-              {children}
-            </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Header title={title} />
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <main className={cn('flex-1', className)}>
+            {children}
           </main>
         </div>
-      </div>
-      
-      {/* Toast Notifications */}
-      <Toaster />
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
