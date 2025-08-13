@@ -177,10 +177,10 @@ export default function LoginPage() {
               <strong>Admin:</strong> admin@lppm.ac.id / admin123
             </div>
             <div>
-              <strong>Dosen:</strong> dosen@lppm.ac.id / dosen123
+              <strong>Dosen:</strong> lecturer@lppm.ac.id / admin123
             </div>
             <div>
-              <strong>Mahasiswa:</strong> mahasiswa@lppm.ac.id / mahasiswa123
+              <strong>Mahasiswa:</strong> student@lppm.ac.id / admin123
             </div>
           </CardContent>
         </Card>
