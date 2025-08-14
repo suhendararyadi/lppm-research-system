@@ -235,11 +235,31 @@ async function getProposal(id, env, user) {
     `).bind(id).all();
     reviews = reviewsResult.results;
   }
+  let teamMembers = [];
+  if (proposal.team_members) {
+    try {
+      teamMembers = JSON.parse(proposal.team_members);
+    } catch (e) {
+      console.error("Error parsing team_members:", e);
+      teamMembers = [];
+    }
+  }
+  let keywords = [];
+  if (proposal.keywords) {
+    try {
+      keywords = JSON.parse(proposal.keywords);
+    } catch (e) {
+      console.error("Error parsing keywords:", e);
+      keywords = [];
+    }
+  }
   return new Response(
     JSON.stringify({
       success: true,
       data: {
         ...proposal,
+        team_members: teamMembers,
+        keywords,
         reviews
       }
     }),

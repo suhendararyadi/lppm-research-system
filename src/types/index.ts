@@ -101,13 +101,14 @@ export interface Department {
 
 // Research Types
 export interface TeamMember {
-  id: string;
+  id?: string;
   name: string;
-  email: string;
+  email?: string;
   role: string;
-  department: string;
+  department?: string;
   institution: string;
-  expertise: string[];
+  expertise?: string[];
+  type?: 'lecturer' | 'student' | 'external';
 }
 
 export interface ResearchProposal {
@@ -116,13 +117,24 @@ export interface ResearchProposal {
   type: ResearchType;
   status: ProposalStatus;
   budget: number;
+  duration?: number;
   start_date: string;
   end_date: string;
+  location?: string;
+  funding_source?: string;
+  sk_number?: string;
+  sk_date?: string;
+  document_url?: string;
   abstract: string;
   keywords: string[];
   submitted_by: string;
   created_at: string;
   updated_at: string;
+  team_members?: TeamMember[];
+  creator_name?: string;
+  creator_department?: string;
+  creator_email?: string;
+  reviews?: any[];
 }
 
 export type ResearchType = 'basic' | 'applied' | 'development' | 'collaborative';

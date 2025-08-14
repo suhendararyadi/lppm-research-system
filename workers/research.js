@@ -256,11 +256,35 @@ async function getProposal(id, env, user) {
     reviews = reviewsResult.results;
   }
 
+  // Parse team_members if it exists
+  let teamMembers = [];
+  if (proposal.team_members) {
+    try {
+      teamMembers = JSON.parse(proposal.team_members);
+    } catch (e) {
+      console.error('Error parsing team_members:', e);
+      teamMembers = [];
+    }
+  }
+
+  // Parse keywords if it exists
+  let keywords = [];
+  if (proposal.keywords) {
+    try {
+      keywords = JSON.parse(proposal.keywords);
+    } catch (e) {
+      console.error('Error parsing keywords:', e);
+      keywords = [];
+    }
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
       data: {
         ...proposal,
+        team_members: teamMembers,
+        keywords: keywords,
         reviews
       }
     }),
