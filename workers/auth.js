@@ -462,9 +462,19 @@ async function handleUserRoutes(request, env, path, corsHeaders) {
     );
   }
 
-  // Check admin permissions
+  // Check permissions - allow lecturers for statistics endpoint only
   console.log('User role:', user.role, 'User data:', user);
-  if (!['super_admin', 'lppm_admin', 'admin'].includes(user.role)) {
+  const isStatisticsEndpoint = method === 'GET' && pathParts.length === 2 && pathParts[1] === 'statistics';
+  
+  if (!['super_admin', 'lppm_admin', 'admin', 'lecturer'].includes(user.role)) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'Insufficient permissions', userRole: user.role }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // For non-statistics endpoints, only allow admin roles
+  if (!isStatisticsEndpoint && !['super_admin', 'lppm_admin', 'admin'].includes(user.role)) {
     return new Response(
       JSON.stringify({ success: false, message: 'Insufficient permissions', userRole: user.role }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -475,6 +485,9 @@ async function handleUserRoutes(request, env, path, corsHeaders) {
     if (method === 'GET' && pathParts.length === 1) {
       // GET /users - List users with pagination and filtering
       return await handleGetUsers(request, env, corsHeaders);
+    } else if (method === 'GET' && pathParts.length === 2 && pathParts[1] === 'statistics') {
+      // GET /users/statistics - Get user statistics
+      return await handleGetUserStatistics(request, env, corsHeaders);
     } else if (method === 'GET' && pathParts.length === 2) {
       // GET /users/:id - Get specific user
       const userId = pathParts[1];
@@ -1078,6 +1091,74 @@ async function handleDeleteProgramStudi(programId, env, corsHeaders) {
     console.error('Error deleting program studi:', error);
     return new Response(
       JSON.stringify({ success: false, message: 'Failed to delete program studi' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+// Get user statistics
+async function handleGetUserStatistics(request, env, corsHeaders) {
+  try {
+    // Verify authentication
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = await verifyJWT(token, env.JWT_SECRET);
+    if (!decoded) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if user has permission to view statistics
+    // Allow lecturers, admins, lppm_admin, and super_admin
+    const allowedRoles = ['lecturer', 'admin', 'lppm_admin', 'super_admin'];
+    if (!allowedRoles.includes(decoded.role)) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Insufficient permissions',
+          userRole: decoded.role 
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const stats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN role = 'lecturer' THEN 1 END) as lecturers,
+        COUNT(CASE WHEN role = 'student' THEN 1 END) as students,
+        COUNT(CASE WHEN role IN ('admin', 'lppm_admin', 'super_admin') THEN 1 END) as admins,
+        COUNT(CASE WHEN is_active = 1 THEN 1 END) as active_users,
+        COUNT(CASE WHEN is_active = 0 THEN 1 END) as inactive_users
+      FROM users
+    `).first();
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: stats
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Error getting user statistics:', error);
+    return new Response(
+      JSON.stringify({ success: false, message: 'Failed to get user statistics' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

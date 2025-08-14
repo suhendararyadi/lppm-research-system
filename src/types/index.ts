@@ -125,7 +125,7 @@ export interface ResearchProposal {
   updated_at: string;
 }
 
-export type ResearchType = 'fundamental' | 'applied' | 'development' | 'collaborative';
+export type ResearchType = 'basic' | 'applied' | 'development' | 'collaborative';
 export type ProposalStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'completed';
 
 export interface ResearchMember {

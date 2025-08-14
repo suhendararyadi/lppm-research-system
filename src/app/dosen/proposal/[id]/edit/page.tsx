@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Plus, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/auth';
 import apiClient from '@/lib/api/client';
+import { ResearchProposal } from '@/types';
 
 // Options untuk dropdown
 const KELOMPOK_BIDANG_OPTIONS = [
@@ -71,11 +72,14 @@ interface FormErrors {
   [key: string]: string;
 }
 
-export default function CreateProposalPage() {
+export default function EditProposalPage() {
   const router = useRouter();
+  const params = useParams();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [proposal, setProposal] = useState<ResearchProposal | null>(null);
   
   const [formData, setFormData] = useState<FormData>({
     judulKegiatan: '',
@@ -93,6 +97,70 @@ export default function CreateProposalPage() {
     anggotaEksternal: [],
     keterangan: '',
   });
+
+  // Fetch proposal data
+  useEffect(() => {
+    const fetchProposal = async () => {
+      if (!params.id) return;
+      
+      setIsLoadingData(true);
+      try {
+        const response = await apiClient.getResearchProposal(params.id as string);
+        if (response.success && response.data) {
+          const proposalData = response.data;
+          setProposal(proposalData);
+          
+          // Map proposal data to form data
+          setFormData({
+            judulKegiatan: proposalData.title,
+            kelompokBidang: getKelompokBidangFromType(proposalData.type),
+            lokasiKegiatan: '', // Not available in API
+            tahunKegiatan: new Date(proposalData.start_date).getFullYear().toString(),
+            lamaKegiatan: calculateDuration(proposalData.start_date, proposalData.end_date),
+            sumberDana: 'perguruan_tinggi', // Default value
+            besaranDana: proposalData.budget.toString(),
+            nomorSK: '', // Not available in API
+            tanggalSK: proposalData.start_date,
+            dokumen: null,
+            anggotaDosen: [],
+            anggotaMahasiswa: [],
+            anggotaEksternal: [],
+            keterangan: proposalData.abstract,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching proposal:', error);
+        toast.error('Gagal memuat data proposal');
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchProposal();
+  }, [params.id]);
+
+  const getKelompokBidangFromType = (type: string): string => {
+    switch (type) {
+      case 'applied':
+        return 'Teknologi Informasi';
+      case 'basic':
+        return 'Ekonomi';
+      case 'development':
+        return 'Pertanian';
+      case 'collaborative':
+        return 'Sosial Humaniora';
+      default:
+        return 'Teknologi Informasi';
+    }
+  };
+
+  const calculateDuration = (startDate: string, endDate: string): string => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30));
+    return `${diffMonths} bulan`;
+  };
 
   const handleInputChange = (field: keyof FormData, value: string | File | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -148,32 +216,8 @@ export default function CreateProposalPage() {
       newErrors.kelompokBidang = 'Kelompok bidang wajib dipilih';
     }
 
-    if (!formData.lokasiKegiatan.trim()) {
-      newErrors.lokasiKegiatan = 'Lokasi kegiatan wajib diisi';
-    }
-
-    if (!formData.tahunKegiatan) {
-      newErrors.tahunKegiatan = 'Tahun kegiatan wajib diisi';
-    }
-
-    if (!formData.lamaKegiatan.trim()) {
-      newErrors.lamaKegiatan = 'Lama kegiatan wajib diisi';
-    }
-
-    if (!formData.sumberDana) {
-      newErrors.sumberDana = 'Sumber dana wajib dipilih';
-    }
-
     if (!formData.besaranDana.trim()) {
       newErrors.besaranDana = 'Besaran dana wajib diisi';
-    }
-
-    if (!formData.nomorSK.trim()) {
-      newErrors.nomorSK = 'Nomor SK penugasan wajib diisi';
-    }
-
-    if (!formData.tanggalSK) {
-      newErrors.tanggalSK = 'Tanggal SK penugasan wajib diisi';
     }
 
     setErrors(newErrors);
@@ -188,9 +232,28 @@ export default function CreateProposalPage() {
       return;
     }
 
+    if (!proposal) {
+      toast.error('Data proposal tidak ditemukan');
+      return;
+    }
+
     setIsLoading(true);
     
     try {
+      // Map kelompok bidang to research type
+      const getResearchType = (kelompokBidang: string): 'basic' | 'applied' | 'development' | 'collaborative' => {
+        const techFields = ['Teknologi Informasi', 'Teknik Elektro', 'Teknik Mesin', 'Teknik Sipil'];
+        const socialFields = ['Ekonomi', 'Manajemen', 'Akuntansi', 'Hukum', 'Pendidikan', 'Sosial Humaniora'];
+        
+        if (techFields.includes(kelompokBidang)) {
+          return 'applied';
+        } else if (socialFields.includes(kelompokBidang)) {
+          return 'basic';
+        } else {
+          return 'development';
+        }
+      };
+
       // Prepare team members data
       const teamMembers = [
         ...formData.anggotaDosen.map(anggota => ({
@@ -213,43 +276,25 @@ export default function CreateProposalPage() {
         }))
       ];
 
-      // Map kelompok bidang to research type
-      const getResearchType = (kelompokBidang: string): 'basic' | 'applied' | 'development' | 'collaborative' => {
-        const techFields = ['Teknologi Informasi', 'Teknik Elektro', 'Teknik Mesin', 'Teknik Sipil'];
-        const socialFields = ['Ekonomi', 'Manajemen', 'Akuntansi', 'Hukum', 'Pendidikan', 'Sosial Humaniora'];
-        
-        if (techFields.includes(kelompokBidang)) {
-          return 'applied';
-        } else if (socialFields.includes(kelompokBidang)) {
-          return 'basic';
-        } else {
-          return 'development';
-        }
-       };
-
-       // Prepare proposal data
-       const proposalData = {
-         title: formData.judulKegiatan,
-         type: getResearchType(formData.kelompokBidang),
-         abstract: formData.keterangan || 'Tidak ada keterangan',
-         keywords: [formData.kelompokBidang],
-         budget: parseInt(formData.besaranDana) || 0,
-         duration: parseInt(formData.lamaKegiatan.replace(/\D/g, '')) || 12,
-         team_members: teamMembers
-       };
+      // Prepare proposal data
+      const proposalData = {
+        title: formData.judulKegiatan,
+        type: getResearchType(formData.kelompokBidang),
+        abstract: formData.keterangan || 'Tidak ada keterangan',
+        keywords: [formData.kelompokBidang],
+        budget: parseInt(formData.besaranDana) || 0,
+        start_date: formData.tanggalSK,
+        end_date: new Date(new Date(formData.tanggalSK).getTime() + (parseInt(formData.lamaKegiatan.replace(/\D/g, '')) || 12) * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        team_members: teamMembers
+      };
       
-      const response = await apiClient.createResearchProposal(proposalData);
+      const response = await apiClient.updateResearchProposal(proposal.id, proposalData);
       
-      if (response.success) {
-        toast.success('Proposal penelitian berhasil dibuat!');
-        router.push('/dosen/proposal');
-      } else {
-        console.error('API Error:', response);
-        toast.error(`Gagal membuat proposal: ${response.error || 'Terjadi kesalahan'}`);
-      }
+      toast.success('Proposal penelitian berhasil diperbarui!');
+      router.push('/dosen/proposal');
     } catch (error) {
-      console.error('Error creating proposal:', error);
-      toast.error('Gagal membuat proposal. Silakan coba lagi.');
+      console.error('Error updating proposal:', error);
+      toast.error('Gagal memperbarui proposal. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -352,21 +397,51 @@ export default function CreateProposalPage() {
     );
   }
 
+  if (isLoadingData) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Memuat data proposal...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!proposal) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-96 flex-col items-center justify-center space-y-4">
+          <div className="text-6xl">❌</div>
+          <h1 className="text-2xl font-bold">Proposal Tidak Ditemukan</h1>
+          <p className="text-muted-foreground">
+            Proposal yang Anda cari tidak ditemukan atau telah dihapus.
+          </p>
+          <Link href="/dosen/proposal">
+            <Button>Kembali ke Daftar Proposal</Button>
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link href="/dosen">
+          <Link href="/dosen/proposal">
             <Button variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Kembali
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Buat Proposal Penelitian</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Edit Proposal Penelitian</h1>
             <p className="text-muted-foreground">
-              Lengkapi form di bawah untuk membuat proposal penelitian baru
+              Perbarui informasi proposal penelitian Anda
             </p>
           </div>
         </div>
@@ -416,82 +491,6 @@ export default function CreateProposalPage() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="lokasiKegiatan">Lokasi Kegiatan *</Label>
-                  <Input
-                    id="lokasiKegiatan"
-                    value={formData.lokasiKegiatan}
-                    onChange={(e) => handleInputChange('lokasiKegiatan', e.target.value)}
-                    placeholder="Masukkan lokasi kegiatan"
-                    className={errors.lokasiKegiatan ? 'border-red-500' : ''}
-                  />
-                  {errors.lokasiKegiatan && (
-                    <p className="text-sm text-red-500 mt-1">{errors.lokasiKegiatan}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <Label htmlFor="tahunKegiatan">Tahun Kegiatan *</Label>
-                  <Input
-                    id="tahunKegiatan"
-                    type="number"
-                    min="2020"
-                    max="2030"
-                    value={formData.tahunKegiatan}
-                    onChange={(e) => handleInputChange('tahunKegiatan', e.target.value)}
-                    className={errors.tahunKegiatan ? 'border-red-500' : ''}
-                  />
-                  {errors.tahunKegiatan && (
-                    <p className="text-sm text-red-500 mt-1">{errors.tahunKegiatan}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <Label htmlFor="lamaKegiatan">Lama Kegiatan *</Label>
-                  <Input
-                    id="lamaKegiatan"
-                    value={formData.lamaKegiatan}
-                    onChange={(e) => handleInputChange('lamaKegiatan', e.target.value)}
-                    placeholder="Contoh: 12 bulan"
-                    className={errors.lamaKegiatan ? 'border-red-500' : ''}
-                  />
-                  {errors.lamaKegiatan && (
-                    <p className="text-sm text-red-500 mt-1">{errors.lamaKegiatan}</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Informasi Pendanaan */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informasi Pendanaan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sumberDana">Sumber Dana *</Label>
-                  <Select
-                    value={formData.sumberDana}
-                    onValueChange={(value) => handleInputChange('sumberDana', value)}
-                  >
-                    <SelectTrigger className={errors.sumberDana ? 'border-red-500' : ''}>
-                      <SelectValue placeholder="Pilih sumber dana" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUMBER_DANA_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.sumberDana && (
-                    <p className="text-sm text-red-500 mt-1">{errors.sumberDana}</p>
-                  )}
-                </div>
-                
-                <div>
                   <Label htmlFor="besaranDana">Besaran Dana (Rp) *</Label>
                   <Input
                     id="besaranDana"
@@ -510,63 +509,21 @@ export default function CreateProposalPage() {
             </CardContent>
           </Card>
 
-          {/* Informasi SK Penugasan */}
+          {/* Keterangan */}
           <Card>
             <CardHeader>
-              <CardTitle>Informasi SK Penugasan</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="nomorSK">Nomor SK Penugasan *</Label>
-                  <Input
-                    id="nomorSK"
-                    value={formData.nomorSK}
-                    onChange={(e) => handleInputChange('nomorSK', e.target.value)}
-                    placeholder="Masukkan nomor SK penugasan"
-                    className={errors.nomorSK ? 'border-red-500' : ''}
-                  />
-                  {errors.nomorSK && (
-                    <p className="text-sm text-red-500 mt-1">{errors.nomorSK}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <Label htmlFor="tanggalSK">Tanggal SK Penugasan *</Label>
-                  <Input
-                    id="tanggalSK"
-                    type="date"
-                    value={formData.tanggalSK}
-                    onChange={(e) => handleInputChange('tanggalSK', e.target.value)}
-                    className={errors.tanggalSK ? 'border-red-500' : ''}
-                  />
-                  {errors.tanggalSK && (
-                    <p className="text-sm text-red-500 mt-1">{errors.tanggalSK}</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Upload Dokumen */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Dokumen</CardTitle>
+              <CardTitle>Abstrak/Keterangan</CardTitle>
             </CardHeader>
             <CardContent>
               <div>
-                <Label htmlFor="dokumen">Dokumen Pendukung</Label>
-                <div className="mt-2">
-                  <Input
-                    id="dokumen"
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={(e) => handleInputChange('dokumen', e.target.files?.[0] || null)}
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Format yang didukung: PDF, DOC, DOCX (Maksimal 10MB)
-                  </p>
-                </div>
+                <Label htmlFor="keterangan">Abstrak Penelitian</Label>
+                <Textarea
+                  id="keterangan"
+                  value={formData.keterangan}
+                  onChange={(e) => handleInputChange('keterangan', e.target.value)}
+                  placeholder="Masukkan abstrak atau keterangan penelitian"
+                  rows={6}
+                />
               </div>
             </CardContent>
           </Card>
@@ -578,28 +535,9 @@ export default function CreateProposalPage() {
             {renderAnggotaSection('Anggota Eksternal', 'anggotaEksternal', formData.anggotaEksternal)}
           </div>
 
-          {/* Keterangan */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Keterangan</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label htmlFor="keterangan">Keterangan Tambahan</Label>
-                <Textarea
-                  id="keterangan"
-                  value={formData.keterangan}
-                  onChange={(e) => handleInputChange('keterangan', e.target.value)}
-                  placeholder="Masukkan keterangan tambahan jika diperlukan"
-                  rows={4}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Submit Button */}
           <div className="flex justify-end gap-4">
-            <Link href="/dosen">
+            <Link href="/dosen/proposal">
               <Button type="button" variant="outline">
                 Batal
               </Button>
@@ -608,12 +546,12 @@ export default function CreateProposalPage() {
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Menyimpan...
+                  Memperbarui...
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                  Simpan Proposal
+                  Perbarui Proposal
                 </>
               )}
             </Button>

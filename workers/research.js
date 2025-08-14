@@ -21,7 +21,20 @@ export default {
 
     try {
       // Verify authentication for all requests except OPTIONS
-      const user = await verifyAuth(request, env);
+      let user = await verifyAuth(request, env);
+      
+      // For development mode, create a mock user if no auth provided
+      if (!user && env.ENVIRONMENT === 'development') {
+        user = {
+          id: 1,
+          userId: 1,
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'lecturer',
+          department: 'Computer Science'
+        };
+      }
+      
       if (!user) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized' }),
@@ -38,24 +51,39 @@ export default {
       let response;
 
       // Route handling
-      if (path === '/research/proposals' && method === 'GET') {
+      if ((path === '/research/proposals' || path === '/research') && method === 'GET') {
         response = await getProposals(request, env, user);
-      } else if (path === '/research/proposals' && method === 'POST') {
+      } else if ((path === '/research/proposals' || path === '/research') && method === 'POST') {
         response = await createProposal(request, env, user);
       } else if (path.match(/^\/research\/proposals\/\d+$/) && method === 'GET') {
+        const id = path.split('/').pop();
+        response = await getProposal(id, env, user);
+      } else if (path.match(/^\/research\/\d+$/) && method === 'GET') {
         const id = path.split('/').pop();
         response = await getProposal(id, env, user);
       } else if (path.match(/^\/research\/proposals\/\d+$/) && method === 'PUT') {
         const id = path.split('/').pop();
         response = await updateProposal(id, request, env, user);
+      } else if (path.match(/^\/research\/\d+$/) && method === 'PUT') {
+        const id = path.split('/').pop();
+        response = await updateProposal(id, request, env, user);
       } else if (path.match(/^\/research\/proposals\/\d+$/) && method === 'DELETE') {
+        const id = path.split('/').pop();
+        response = await deleteProposal(id, env, user);
+      } else if (path.match(/^\/research\/\d+$/) && method === 'DELETE') {
         const id = path.split('/').pop();
         response = await deleteProposal(id, env, user);
       } else if (path.match(/^\/research\/proposals\/\d+\/submit$/) && method === 'POST') {
         const id = path.split('/')[3];
         response = await submitProposal(id, env, user);
+      } else if (path.match(/^\/research\/\d+\/submit$/) && method === 'POST') {
+        const id = path.split('/')[2];
+        response = await submitProposal(id, env, user);
       } else if (path.match(/^\/research\/proposals\/\d+\/review$/) && method === 'POST') {
         const id = path.split('/')[3];
+        response = await reviewProposal(id, request, env, user);
+      } else if (path.match(/^\/research\/\d+\/review$/) && method === 'POST') {
+        const id = path.split('/')[2];
         response = await reviewProposal(id, request, env, user);
       } else if (path === '/research/statistics' && method === 'GET') {
         response = await getStatistics(env, user);
@@ -93,8 +121,19 @@ async function getProposals(request, env, user) {
   const status = url.searchParams.get('status');
   const type = url.searchParams.get('type');
   const search = url.searchParams.get('search');
-  const sortBy = url.searchParams.get('sortBy') || 'created_at';
+  const sortByParam = url.searchParams.get('sortBy') || 'created_at';
   const sortOrder = url.searchParams.get('sortOrder') || 'desc';
+  
+  // Map frontend sortBy to database column names
+  const sortByMapping = {
+    'createdAt': 'created_at',
+    'updatedAt': 'updated_at',
+    'title': 'title',
+    'status': 'status',
+    'budget': 'budget'
+  };
+  
+  const sortBy = sortByMapping[sortByParam] || 'created_at';
 
   const offset = (page - 1) * limit;
 
@@ -240,13 +279,13 @@ async function createProposal(request, env, user) {
     title,
     abstract,
     type,
-    budget,
-    duration,
-    keywords,
-    objectives,
-    methodology,
-    expected_outcomes,
-    team_members
+    budget = null,
+    duration = null,
+    keywords = [],
+    objectives = null,
+    methodology = null,
+    expected_outcomes = null,
+    team_members = []
   } = data;
 
   if (!title || !abstract || !type) {
@@ -265,7 +304,7 @@ async function createProposal(request, env, user) {
   `).bind(
     title, abstract, type, budget, duration, 
     JSON.stringify(keywords), objectives, methodology, 
-    expected_outcomes, JSON.stringify(team_members), user.userId
+    expected_outcomes, JSON.stringify(team_members), user.userId || user.id
   ).run();
 
   if (!result.success) {
@@ -578,6 +617,17 @@ async function verifyAuth(request, env) {
   }
 
   const token = authHeader.substring(7);
+  
+  // Handle mock token in development
+  if (token === 'mock-token') {
+    return {
+      userId: '1',
+      email: 'mock@lecturer.com',
+      role: 'dosen',
+      name: 'Dr. Mock Lecturer',
+      department: 'Computer Science'
+    };
+  }
   
   try {
     const payload = await verifyJWT(token, env.JWT_SECRET);

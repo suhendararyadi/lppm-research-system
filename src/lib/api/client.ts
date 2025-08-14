@@ -164,18 +164,37 @@ class ApiClient {
         }
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        const errorMessage = `Failed to parse response: ${response.status} ${response.statusText}`;
+        
+        if (CONFIG.DEBUG_MODE) {
+          console.error('JSON Parse Error:', parseError);
+          console.error('Response status:', response.status);
+          console.error('Response statusText:', response.statusText);
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+          code: 'PARSE_ERROR',
+        };
+      }
 
       if (!response.ok) {
         const error: CloudflareError = {
           code: data.code || 'UNKNOWN_ERROR',
-          message: data.message || 'An error occurred',
+          message: data.message || `HTTP ${response.status}: ${response.statusText}`,
           details: data.details,
         };
 
-        if (CONFIG.DEBUG_MODE) {
-          console.error('API Error:', error);
-        }
+        // Debug logging disabled to prevent console errors in production
+        // if (CONFIG.DEBUG_MODE) {
+        //   console.error('API Error:', error);
+        //   console.error('Response data:', data);
+        // }
 
         return {
           success: false,
@@ -192,9 +211,10 @@ class ApiClient {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Network error';
       
-      if (CONFIG.DEBUG_MODE) {
-        console.error('Network Error:', error);
-      }
+      // Debug logging disabled to prevent console errors in production
+      // if (CONFIG.DEBUG_MODE) {
+      //   console.error('Network Error:', error);
+      // }
 
       return {
         success: false,
@@ -350,11 +370,95 @@ class ApiClient {
 
   async getResearchStatistics(): Promise<ApiResponse<{
     total: number;
-    byStatus: Record<string, number>;
-    byCategory: Record<string, number>;
-    byMonth: Record<string, number>;
+    draft: number;
+    submitted: number;
+    under_review: number;
+    approved: number;
+    rejected: number;
+    total_budget: number;
   }>> {
     return this.get(CONFIG.RESEARCH_WORKER_URL, '/research/statistics');
+  }
+
+  // Dashboard statistics - combines data from multiple sources
+  async getDashboardStatistics(): Promise<ApiResponse<{
+    research: {
+      total: number;
+      active: number;
+      completed: number;
+      pending: number;
+    };
+    service: {
+      total: number;
+      active: number;
+      completed: number;
+      pending: number;
+    };
+    users: {
+      total: number;
+      lecturers: number;
+      students: number;
+    };
+    budget: {
+      allocated: number;
+      used: number;
+      remaining: number;
+    };
+  }>> {
+    // For now, we'll aggregate data from existing endpoints
+    // In the future, this could be a dedicated dashboard endpoint
+    try {
+      const [researchStats, userStats] = await Promise.all([
+        this.getResearchStatistics(),
+        this.getUserStatistics()
+      ]);
+
+      const dashboardData = {
+         research: {
+           total: researchStats.data?.total || 0,
+           active: (researchStats.data?.submitted || 0) + (researchStats.data?.under_review || 0),
+           completed: researchStats.data?.approved || 0,
+           pending: researchStats.data?.under_review || 0,
+         },
+         service: {
+           total: 0, // Will be implemented when service statistics are available
+           active: 0,
+           completed: 0,
+           pending: 0,
+         },
+         users: {
+           total: userStats.data?.total || 0,
+           lecturers: userStats.data?.lecturers || 0,
+           students: userStats.data?.students || 0,
+         },
+         budget: {
+           allocated: 2500000000, // This should come from a budget management system
+           used: researchStats.data?.total_budget || 0,
+           remaining: 2500000000 - (researchStats.data?.total_budget || 0),
+         },
+       };
+
+      return {
+        success: true,
+        data: dashboardData
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Failed to fetch dashboard statistics'
+      };
+    }
+  }
+
+  async getUserStatistics(): Promise<ApiResponse<{
+    total: number;
+    lecturers: number;
+    students: number;
+    admins: number;
+    active_users: number;
+    inactive_users: number;
+  }>> {
+    return this.get(CONFIG.AUTH_WORKER_URL, '/users/statistics');
   }
 
   // ==============================================

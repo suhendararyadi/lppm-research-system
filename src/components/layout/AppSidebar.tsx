@@ -83,8 +83,9 @@ const navigation: NavItem[] = [
       },
       {
         title: 'Proposal Saya',
-        href: '/research/my-proposals',
+        href: '/dosen/proposal',
         icon: FileText,
+        roles: ['lecturer'],
       },
       {
         title: 'Semua Proposal',
@@ -98,11 +99,6 @@ const navigation: NavItem[] = [
         icon: UserCheck,
         roles: ['reviewer', 'super_admin', 'lppm_admin'],
         badge: '3',
-      },
-      {
-        title: 'Laporan Progress',
-        href: '/research/progress',
-        icon: BarChart3,
       },
     ],
   },

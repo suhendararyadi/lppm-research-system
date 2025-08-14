@@ -123,6 +123,32 @@ export const useAuthStore = create<AuthState>()(persist(
     checkAuth: async () => {
       const { token, refreshToken } = get();
       
+      // Development mode: create mock user if no token exists
+      if (process.env.NODE_ENV === 'development' && !token) {
+        const mockUser = {
+          id: '1',
+          name: 'Dr. Mock Lecturer',
+          email: 'mock@lecturer.com',
+          role: 'dosen' as const,
+          department: 'Computer Science',
+          phone: '081234567890',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        set({
+          user: mockUser,
+          token: 'mock-token',
+          refreshToken: 'mock-refresh-token',
+          isAuthenticated: true,
+          isLoading: false,
+        });
+        
+        // Set mock tokens in API client
+        apiClient.setTokens('mock-token', 'mock-refresh-token');
+        return;
+      }
+      
       if (!token) {
         set({ isAuthenticated: false, isLoading: false });
         return;

@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// .wrangler/tmp/bundle-7H7w3j/checked-fetch.js
+// .wrangler/tmp/bundle-Wc4wzj/checked-fetch.js
 var urls = /* @__PURE__ */ new Set();
 function checkURL(request, init) {
   const url = request instanceof URL ? request : new URL(
@@ -421,7 +421,14 @@ async function handleUserRoutes(request, env, path, corsHeaders) {
     );
   }
   console.log("User role:", user.role, "User data:", user);
-  if (!["super_admin", "lppm_admin", "admin"].includes(user.role)) {
+  const isStatisticsEndpoint = method === "GET" && pathParts.length === 2 && pathParts[1] === "statistics";
+  if (!["super_admin", "lppm_admin", "admin", "lecturer"].includes(user.role)) {
+    return new Response(
+      JSON.stringify({ success: false, message: "Insufficient permissions", userRole: user.role }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  if (!isStatisticsEndpoint && !["super_admin", "lppm_admin", "admin"].includes(user.role)) {
     return new Response(
       JSON.stringify({ success: false, message: "Insufficient permissions", userRole: user.role }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -430,6 +437,8 @@ async function handleUserRoutes(request, env, path, corsHeaders) {
   try {
     if (method === "GET" && pathParts.length === 1) {
       return await handleGetUsers(request, env, corsHeaders);
+    } else if (method === "GET" && pathParts.length === 2 && pathParts[1] === "statistics") {
+      return await handleGetUserStatistics(request, env, corsHeaders);
     } else if (method === "GET" && pathParts.length === 2) {
       const userId = pathParts[1];
       return await handleGetUser(userId, env, corsHeaders);
@@ -968,6 +977,66 @@ async function handleDeleteProgramStudi(programId, env, corsHeaders) {
   }
 }
 __name(handleDeleteProgramStudi, "handleDeleteProgramStudi");
+async function handleGetUserStatistics(request, env, corsHeaders) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const token = authHeader.substring(7);
+    const decoded = await verifyJWT(token, env.JWT_SECRET);
+    if (!decoded) {
+      return new Response(
+        JSON.stringify({ success: false, message: "Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const allowedRoles = ["lecturer", "admin", "lppm_admin", "super_admin"];
+    if (!allowedRoles.includes(decoded.role)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Insufficient permissions",
+          userRole: decoded.role
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const stats = await env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN role = 'lecturer' THEN 1 END) as lecturers,
+        COUNT(CASE WHEN role = 'student' THEN 1 END) as students,
+        COUNT(CASE WHEN role IN ('admin', 'lppm_admin', 'super_admin') THEN 1 END) as admins,
+        COUNT(CASE WHEN is_active = 1 THEN 1 END) as active_users,
+        COUNT(CASE WHEN is_active = 0 THEN 1 END) as inactive_users
+      FROM users
+    `).first();
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: stats
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error getting user statistics:", error);
+    return new Response(
+      JSON.stringify({ success: false, message: "Failed to get user statistics" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+}
+__name(handleGetUserStatistics, "handleGetUserStatistics");
 
 // ../../../../../Library/Application Support/Herd/config/nvm/versions/node/v22.17.0/lib/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
 var drainBody = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
@@ -1010,7 +1079,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-7H7w3j/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-Wc4wzj/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -1042,7 +1111,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-7H7w3j/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-Wc4wzj/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
