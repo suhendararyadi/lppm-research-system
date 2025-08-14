@@ -4,13 +4,92 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
-  department_id?: string;
-  avatar?: string;
+  department?: string;
+  institution?: string;
+  phone?: string;
+  address?: string;
+  expertise?: string; // JSON array of expertise areas
+  nidn?: string; // For lecturers and admins
+  nuptk?: string; // For lecturers and admins
+  nim?: string; // For students
+  program_studi?: string;
+  status_kepegawaian?: string;
+  jabatan_fungsional?: string;
+  pendidikan_terakhir?: string;
+  tahun_masuk?: number;
+  foto_profil?: string;
+  signature_digital?: string;
+  is_active?: boolean;
+  email_verified?: boolean;
+  last_login?: string;
   created_at: string;
   updated_at: string;
 }
 
-export type UserRole = 'super_admin' | 'lppm_admin' | 'dosen' | 'mahasiswa' | 'reviewer' | 'guest';
+export type UserRole = 'super_admin' | 'lppm_admin' | 'admin' | 'dosen' | 'mahasiswa' | 'reviewer' | 'guest';
+
+// Program Studi Types
+export interface ProgramStudi {
+  id: string;
+  kode: string;
+  nama: string;
+  fakultas: string;
+  jenjang: 'D3' | 'S1' | 'S2' | 'S3';
+  akreditasi?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// User Form Types
+export interface CreateUserForm {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  role: UserRole;
+  program_studi: string;
+  nidn?: string;
+  nuptk?: string;
+  nim?: string;
+  department?: string;
+  institution?: string;
+  phone?: string;
+  address?: string;
+  expertise?: string[];
+  status_kepegawaian?: string;
+  jabatan_fungsional?: string;
+  pendidikan_terakhir?: string;
+  tahun_masuk?: number;
+}
+
+export interface UpdateUserForm {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  program_studi?: string;
+  nidn?: string;
+  nuptk?: string;
+  nim?: string;
+  department?: string;
+  institution?: string;
+  phone?: string;
+  address?: string;
+  expertise?: string[];
+  status_kepegawaian?: string;
+  jabatan_fungsional?: string;
+  pendidikan_terakhir?: string;
+  tahun_masuk?: string;
+  is_active?: boolean;
+}
+
+export interface UserFilter {
+  role?: string;
+  program_studi?: string;
+  is_active?: boolean;
+  search?: string;
+  fakultas?: string;
+}
 
 export interface Department {
   id: string;

@@ -6,7 +6,11 @@ import type {
   ResearchProposal, 
   CommunityService, 
   ResearchFilter, 
-  ServiceFilter 
+  ServiceFilter,
+  ProgramStudi,
+  CreateUserForm,
+  UpdateUserForm,
+  UserFilter
 } from '@/types';
 
 // Environment configuration
@@ -245,6 +249,10 @@ class ApiClient {
     return this.post(CONFIG.AUTH_WORKER_URL, '/auth/register', userData);
   }
 
+  async createUser(data: CreateUserForm): Promise<ApiResponse<User>> {
+    return this.post(CONFIG.AUTH_WORKER_URL, '/users/', data);
+  }
+
   async logout(): Promise<ApiResponse<void>> {
     const result = await this.post<void>(CONFIG.AUTH_WORKER_URL, '/auth/logout');
     this.clearTokens();
@@ -405,8 +413,8 @@ class ApiClient {
   async getUsers(
     page = 1,
     limit = 10,
-    filters?: { role?: string; department?: string; status?: string },
-    sortBy = 'createdAt',
+    filters?: UserFilter,
+    sortBy = 'created_at',
     sortOrder: 'asc' | 'desc' = 'desc'
   ): Promise<ApiResponse<PaginatedResponse<User>>> {
     const params = new URLSearchParams({
@@ -424,14 +432,14 @@ class ApiClient {
       });
     }
 
-    return this.get(CONFIG.AUTH_WORKER_URL, `/users?${params.toString()}`);
+    return this.get(CONFIG.AUTH_WORKER_URL, `/users/?${params.toString()}`);
   }
 
   async getUser(id: string): Promise<ApiResponse<User>> {
     return this.get(CONFIG.AUTH_WORKER_URL, `/users/${id}`);
   }
 
-  async updateUser(id: string, data: Partial<User>): Promise<ApiResponse<User>> {
+  async updateUser(id: string, data: UpdateUserForm): Promise<ApiResponse<User>> {
     return this.put(CONFIG.AUTH_WORKER_URL, `/users/${id}`, data);
   }
 
@@ -441,6 +449,26 @@ class ApiClient {
 
   async updateProfile(data: Partial<User>): Promise<ApiResponse<User>> {
     return this.put(CONFIG.AUTH_WORKER_URL, '/profile', data);
+  }
+
+  // ==============================================
+  // PROGRAM STUDI METHODS
+  // ==============================================
+
+  async getProgramStudi(): Promise<ApiResponse<ProgramStudi[]>> {
+    return this.get(CONFIG.AUTH_WORKER_URL, '/program-studi/');
+  }
+
+  async createProgramStudi(data: Omit<ProgramStudi, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<ProgramStudi>> {
+    return this.post(CONFIG.AUTH_WORKER_URL, '/program-studi/', data);
+  }
+
+  async updateProgramStudi(id: string, data: Partial<ProgramStudi>): Promise<ApiResponse<ProgramStudi>> {
+    return this.put(CONFIG.AUTH_WORKER_URL, `/program-studi/${id}`, data);
+  }
+
+  async deleteProgramStudi(id: string): Promise<ApiResponse<void>> {
+    return this.delete(CONFIG.AUTH_WORKER_URL, `/program-studi/${id}`);
   }
 
   // ==============================================

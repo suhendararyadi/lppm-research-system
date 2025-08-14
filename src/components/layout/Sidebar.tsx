@@ -103,7 +103,7 @@ const navigation: NavItem[] = [
     title: 'Pengguna',
     href: '/admin/users',
     icon: Users,
-    roles: ['admin'],
+    roles: ['super_admin', 'lppm_admin', 'admin'],
   },
   {
     title: 'Laporan',

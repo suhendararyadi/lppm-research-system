@@ -52,6 +52,7 @@ import {
   LogOut,
   User,
   GraduationCap,
+  School,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
@@ -135,7 +136,13 @@ const adminNavigation: NavItem[] = [
     title: 'Pengguna',
     href: '/admin/users',
     icon: Users,
-    roles: ['super_admin', 'lppm_admin'],
+    roles: ['super_admin', 'lppm_admin', 'admin'],
+  },
+  {
+    title: 'Program Studi',
+    href: '/admin/program-studi',
+    icon: School,
+    roles: ['super_admin', 'lppm_admin', 'admin'],
   },
   {
     title: 'Laporan',
@@ -346,7 +353,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Admin Navigation */}
-        {user && (user.role === 'super_admin' || user.role === 'lppm_admin') && (
+        {user && (user.role === 'super_admin' || user.role === 'lppm_admin' || user.role === 'admin') && (
           <SidebarGroup>
             <SidebarGroupLabel>Administrasi</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -378,7 +385,7 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user?.avatar} alt={user?.name} />
+                    <AvatarImage src={user?.foto_profil} alt={user?.name} />
                     <AvatarFallback className="rounded-lg">
                       {user?.name ? getInitials(user.name) : 'U'}
                     </AvatarFallback>
@@ -399,7 +406,7 @@ export function AppSidebar() {
                 <DropdownMenuLabel className="p-0 font-normal">
                   <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                     <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage src={user?.avatar} alt={user?.name} />
+                      <AvatarImage src={user?.foto_profil} alt={user?.name} />
                       <AvatarFallback className="rounded-lg">
                         {user?.name ? getInitials(user.name) : 'U'}
                       </AvatarFallback>
