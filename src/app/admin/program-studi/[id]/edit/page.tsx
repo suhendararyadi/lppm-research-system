@@ -37,6 +37,7 @@ const FAKULTAS_OPTIONS = [
 ];
 
 const AKREDITASI_OPTIONS = [
+  { value: 'Belum terakreditasi', label: 'Belum terakreditasi' },
   { value: 'A', label: 'A' },
   { value: 'B', label: 'B' },
   { value: 'C', label: 'C' },
@@ -347,7 +348,6 @@ export default function EditProgramStudiPage() {
                       <SelectValue placeholder="Pilih akreditasi (opsional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Belum terakreditasi</SelectItem>
                       {AKREDITASI_OPTIONS.map((akreditasi) => (
                         <SelectItem key={akreditasi.value} value={akreditasi.value}>
                           {akreditasi.label}

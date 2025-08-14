@@ -29,6 +29,7 @@ const JENJANG_OPTIONS = [
 ];
 
 const AKREDITASI_OPTIONS = [
+  { value: 'Belum terakreditasi', label: 'Belum terakreditasi' },
   { value: 'A', label: 'A' },
   { value: 'B', label: 'B' },
   { value: 'C', label: 'C' },
@@ -236,7 +237,6 @@ export default function CreateProgramStudiPage() {
                     <SelectValue placeholder="Pilih akreditasi (opsional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tidak ada</SelectItem>
                     {AKREDITASI_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}

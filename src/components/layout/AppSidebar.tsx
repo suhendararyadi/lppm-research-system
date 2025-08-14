@@ -76,6 +76,12 @@ const navigation: NavItem[] = [
     icon: BookOpen,
     children: [
       {
+        title: 'Buat Proposal',
+        href: '/dosen/proposal/create',
+        icon: FileText,
+        roles: ['lecturer'],
+      },
+      {
         title: 'Proposal Saya',
         href: '/research/my-proposals',
         icon: FileText,
