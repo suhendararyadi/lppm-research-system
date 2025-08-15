@@ -25,8 +25,16 @@ const nextConfig: NextConfig = {
         destination: 'http://localhost:8788/research'
       },
       {
+        source: '/api/research/statistics',
+        destination: 'http://localhost:8788/research/statistics'
+      },
+      {
         source: '/api/research/:path*',
-        destination: 'http://localhost:8788/:path*'
+        destination: 'http://localhost:8788/research/:path*'
+      },
+      {
+        source: '/api/statistics',
+        destination: 'http://localhost:8788/research/statistics'
       }
     ];
   }
