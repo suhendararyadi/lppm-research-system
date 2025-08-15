@@ -34,9 +34,9 @@ export default {
         return await handleDocumentRoutes(request, env, path, corsHeaders);
       } else if (path.startsWith('/notifications/')) {
         return await handleNotificationRoutes(request, env, path, corsHeaders);
-      } else if (path.startsWith('/users/')) {
+      } else if (path.startsWith('/users')) {
         return await handleUserRoutes(request, env, path, corsHeaders);
-      } else if (path.startsWith('/program-studi/')) {
+      } else if (path.startsWith('/program-studi')) {
         return await handleProgramStudiRoutes(request, env, path, corsHeaders);
       } else if (path === '/health') {
         return new Response(
