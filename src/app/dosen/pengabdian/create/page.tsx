@@ -95,22 +95,22 @@ export default function CreatePengabdianPage() {
     setFormData(prev => ({ ...prev, uploadDokumen: file }));
   };
 
-  const getServiceType = (kelompokBidang: string): 'community_empowerment' | 'education_training' | 'health_service' | 'environmental' | 'technology_transfer' | 'social_service' | 'disaster_relief' | 'other' => {
+  const getServiceType = (kelompokBidang: string): 'education' | 'health' | 'technology' | 'environment' | 'social' | 'economic' => {
     switch (kelompokBidang) {
       case 'Pendidikan':
-        return 'education_training';
+        return 'education';
       case 'Kesehatan':
-        return 'health_service';
+        return 'health';
       case 'Teknologi':
-        return 'technology_transfer';
+        return 'technology';
       case 'Lingkungan':
-        return 'environmental';
+        return 'environment';
       case 'Sosial':
-        return 'social_service';
+        return 'social';
       case 'Ekonomi':
-        return 'community_empowerment';
+        return 'economic';
       default:
-        return 'other';
+        return 'social';
     }
   };
 
@@ -147,19 +147,26 @@ export default function CreatePengabdianPage() {
         }))
       ];
 
+      // Calculate start and end dates
+      const startDate = new Date();
+      const durationMonths = parseInt(formData.lamaKegiatan.replace(/\D/g, '')) || 3;
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + durationMonths);
+
       // Prepare service data
       const serviceData = {
         title: formData.judulKegiatan,
         description: formData.keterangan || 'Tidak ada keterangan',
         type: getServiceType(formData.kelompokBidang),
+        budget: parseInt(formData.besaranDana) || 0,
+        start_date: startDate.toISOString().split('T')[0], // Format: YYYY-MM-DD
+        end_date: endDate.toISOString().split('T')[0], // Format: YYYY-MM-DD
         target_audience: 'Masyarakat umum',
         location: formData.lokasiKegiatan,
-        budget: parseInt(formData.besaranDana) || 0,
-        duration: parseInt(formData.lamaKegiatan.replace(/\D/g, '')) || 3,
-        team_members: teamMembers,
         objectives: formData.judulKegiatan,
-        methodology: 'Metode pengabdian masyarakat',
         expected_impact: 'Dampak positif bagi masyarakat',
+        team_members: teamMembers,
+        methodology: 'Metode pengabdian masyarakat',
         funding_source: formData.sumberDana,
         sk_number: formData.nomorSK,
         sk_date: formData.tanggalSK,

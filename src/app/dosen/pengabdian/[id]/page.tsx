@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Edit, FileText, Calendar, DollarSign, Users, MapPin, Clock, Target, Lightbulb, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Edit, FileText, Calendar, DollarSign, Users, MapPin, Clock, Target, Lightbulb, TrendingUp, Trash2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useAuthStore } from '@/stores/auth';
 import apiClient from '@/lib/api/client';
 import { toast } from 'sonner';
+import { ConfirmationModal } from '@/components/ui/confirmation-modal';
 import type { CommunityService, TeamMember } from '@/types';
 
 const statusColors = {
@@ -61,6 +62,8 @@ export default function PengabdianDetailPage() {
   const { user } = useAuthStore();
   const [service, setService] = useState<CommunityService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -103,6 +106,28 @@ export default function PengabdianDetailPage() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handleDelete = async () => {
+    if (!service) return;
+    
+    try {
+      setIsDeleting(true);
+      const response = await apiClient.deleteCommunityService(service.id.toString());
+      
+      if (response.success) {
+        toast.success('Pengabdian berhasil dihapus');
+        router.push('/dosen/pengabdian');
+      } else {
+        toast.error('Gagal menghapus pengabdian');
+      }
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      toast.error('Terjadi kesalahan saat menghapus pengabdian');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
   };
 
   if (isLoading) {
@@ -165,12 +190,22 @@ export default function PengabdianDetailPage() {
             </div>
           </div>
           {(service.status === 'draft' || service.status === 'rejected') && (
-            <Link href={`/dosen/pengabdian/${service.id}/edit`}>
-              <Button>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Proposal
+            <div className="flex gap-2">
+              <Link href={`/dosen/pengabdian/${service.id}/edit`}>
+                <Button>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Proposal
+                </Button>
+              </Link>
+              <Button 
+                variant="destructive" 
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isDeleting ? 'Menghapus...' : 'Hapus'}
               </Button>
-            </Link>
+            </div>
           )}
         </div>
 
@@ -237,11 +272,11 @@ export default function PengabdianDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold text-blue-600">
-                    {service.expected_participants.toLocaleString('id-ID')} orang
+                    {service.expected_participants ? service.expected_participants.toLocaleString('id-ID') : '0'} orang
                   </p>
                   {service.actual_participants && (
                     <p className="text-sm text-muted-foreground mt-2">
-                      Peserta aktual: {service.actual_participants.toLocaleString('id-ID')} orang
+                      Peserta aktual: {(service.actual_participants || 0).toLocaleString('id-ID')} orang
                     </p>
                   )}
                 </CardContent>
@@ -395,6 +430,19 @@ export default function PengabdianDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+          title="Konfirmasi Hapus"
+          description={`Apakah Anda yakin ingin menghapus proposal pengabdian "${service?.title}"? Tindakan ini tidak dapat dibatalkan.`}
+          confirmText="Hapus"
+          cancelText="Batal"
+          type="danger"
+          isLoading={isDeleting}
+        />
       </div>
     </DashboardLayout>
   );

@@ -167,7 +167,7 @@ async function handleLogin(request, env) {
       success: true,
       token,
       user: {
-        id: user.id,
+        id: String(user.id), // Convert to string for frontend compatibility
         email: user.email,
         name: user.name,
         role: user.role,
@@ -270,7 +270,10 @@ async function handleVerifyToken(request, env) {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        user: payload 
+        user: {
+          ...payload,
+          id: String(payload.userId) // Convert userId to id as string for frontend compatibility
+        }
       }),
       { 
         status: 200, 
@@ -428,7 +431,7 @@ async function getCommunityService(id, env, user, corsHeaders) {
     }
 
     // Check permissions
-    if ((user.role === 'lecturer' || user.role === 'dosen') && result.created_by !== user.userId) {
+    if ((user.role === 'lecturer' || user.role === 'dosen') && result.created_by !== user.id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -505,7 +508,7 @@ async function createCommunityService(request, env, user, corsHeaders) {
     const query = `
       INSERT INTO community_services (
         title, description, type, budget, start_date, end_date,
-        objectives, target_audience, expected_outcomes, location,
+        objectives, target_audience, expected_impact, location,
         status, created_by, created_at, updated_at
       ) VALUES (
         ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'draft', ?11, ?12, ?13
@@ -521,7 +524,7 @@ async function createCommunityService(request, env, user, corsHeaders) {
       data.end_date,
       data.objectives || '',
       data.target_audience || '',
-      data.expected_outcomes || '',
+      data.expected_outcomes || data.expected_impact || '',
       data.location || '',
       user.userId,
       now,
@@ -593,7 +596,7 @@ async function updateCommunityService(id, request, env, user, corsHeaders) {
     }
 
     // Check permissions
-    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.userId) {
+    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -622,7 +625,7 @@ async function updateCommunityService(id, request, env, user, corsHeaders) {
         end_date = ?6,
         objectives = ?7,
         target_audience = ?8,
-        expected_outcomes = ?9,
+        expected_impact = ?9,
         location = ?10,
         updated_at = ?11
       WHERE id = ?12
@@ -637,7 +640,7 @@ async function updateCommunityService(id, request, env, user, corsHeaders) {
       data.end_date || existingService.end_date,
       data.objectives || existingService.objectives,
       data.target_audience || existingService.target_audience,
-      data.expected_outcomes || existingService.expected_outcomes,
+      data.expected_outcomes || data.expected_impact || existingService.expected_impact,
       data.location || existingService.location,
       now,
       id
@@ -705,7 +708,7 @@ async function deleteCommunityService(id, env, user, corsHeaders) {
     }
 
     // Check permissions
-    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.userId) {
+    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.id) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -798,7 +801,7 @@ async function submitCommunityService(id, env, user, corsHeaders) {
     }
 
     // Check permissions
-    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.userId) {
+    if ((user.role === 'lecturer' || user.role === 'dosen') && existingService.created_by !== user.id) {
       return new Response(
         JSON.stringify({
           success: false,

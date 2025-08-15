@@ -373,14 +373,12 @@ export interface CommunityService {
 }
 
 export type ServiceType = 
-  | 'community_empowerment'
-  | 'education_training'
-  | 'health_service'
-  | 'environmental'
-  | 'technology_transfer'
-  | 'social_service'
-  | 'disaster_relief'
-  | 'other';
+  | 'education'
+  | 'health'
+  | 'technology'
+  | 'environment'
+  | 'social'
+  | 'economic';
 
 export interface SortOption {
   field: string;

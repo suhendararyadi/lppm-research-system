@@ -33,14 +33,12 @@ interface FormData {
 }
 
 const serviceTypes = [
-  { value: 'community_empowerment', label: 'Pemberdayaan Masyarakat' },
-  { value: 'education_training', label: 'Pendidikan dan Pelatihan' },
-  { value: 'health_service', label: 'Pelayanan Kesehatan' },
-  { value: 'technology_transfer', label: 'Transfer Teknologi' },
-  { value: 'social_service', label: 'Pelayanan Sosial' },
-  { value: 'environmental', label: 'Lingkungan' },
-  { value: 'disaster_relief', label: 'Bantuan Bencana' },
-  { value: 'other', label: 'Lainnya' }
+  { value: 'education', label: 'Pendidikan' },
+  { value: 'health', label: 'Kesehatan' },
+  { value: 'technology', label: 'Teknologi' },
+  { value: 'environment', label: 'Lingkungan' },
+  { value: 'social', label: 'Sosial' },
+  { value: 'economic', label: 'Ekonomi' }
 ];
 
 const fundingSources = [
@@ -155,17 +153,15 @@ export default function EditPengabdianPage() {
 
   const getServiceType = (typeValue: string): ServiceType => {
     const validTypes: ServiceType[] = [
-      'community_empowerment',
-      'education_training', 
-      'health_service',
-      'technology_transfer',
-      'social_service',
-      'environmental',
-      'disaster_relief',
-      'other'
+      'education',
+      'health',
+      'technology',
+      'environment',
+      'social',
+      'economic'
     ];
     
-    return validTypes.includes(typeValue as ServiceType) ? typeValue as ServiceType : 'other';
+    return validTypes.includes(typeValue as ServiceType) ? typeValue as ServiceType : 'social';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

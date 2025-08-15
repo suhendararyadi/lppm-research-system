@@ -71,7 +71,12 @@ export default function PengabdianPage() {
         const servicesData = response.data.data || response.data;
         // Filter services by current user
         const userServices = Array.isArray(servicesData) 
-          ? servicesData.filter((service: CommunityService) => service.created_by === user?.id)
+          ? servicesData.filter((service: CommunityService) => {
+              // Pastikan perbandingan tipe data yang sama (string dengan string atau number dengan number)
+              const serviceCreatedBy = typeof service.created_by === 'string' ? service.created_by : String(service.created_by);
+              const userId = typeof user?.id === 'string' ? user.id : String(user?.id);
+              return serviceCreatedBy === userId;
+            })
           : [];
         setServices(userServices);
       } else {
