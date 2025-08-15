@@ -17,7 +17,7 @@ import type {
 const CONFIG = {
   AUTH_WORKER_URL: process.env.NEXT_PUBLIC_AUTH_WORKER_URL || 'http://localhost:8787',
   RESEARCH_WORKER_URL: process.env.NEXT_PUBLIC_RESEARCH_WORKER_URL || 'http://localhost:8788',
-  SERVICE_WORKER_URL: process.env.NEXT_PUBLIC_SERVICE_WORKER_URL || 'http://localhost:8789',
+  SERVICE_WORKER_URL: process.env.NEXT_PUBLIC_SERVICE_WORKER_URL || 'http://localhost:8787', // Use auth worker for service endpoints
   DOCUMENTS_WORKER_URL: process.env.NEXT_PUBLIC_DOCUMENTS_WORKER_URL || 'http://localhost:8790',
   NOTIFICATIONS_WORKER_URL: process.env.NEXT_PUBLIC_NOTIFICATIONS_WORKER_URL || 'http://localhost:8791',
   ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',

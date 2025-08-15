@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// .wrangler/tmp/bundle-Wc4wzj/checked-fetch.js
+// .wrangler/tmp/bundle-Rue6c0/checked-fetch.js
 var urls = /* @__PURE__ */ new Set();
 function checkURL(request, init) {
   const url = request instanceof URL ? request : new URL(
@@ -49,7 +49,7 @@ var auth_default = {
         return await handleAuthRoutes(request, env, path, corsHeaders);
       } else if (path.startsWith("/research/")) {
         return await handleResearchRoutes(request, env, path, corsHeaders);
-      } else if (path.startsWith("/service/")) {
+      } else if (path.startsWith("/service/") || path === "/service") {
         return await handleServiceRoutes(request, env, path, corsHeaders);
       } else if (path.startsWith("/documents/")) {
         return await handleDocumentRoutes(request, env, path, corsHeaders);
@@ -265,6 +265,669 @@ async function handleVerifyToken(request, env) {
   }
 }
 __name(handleVerifyToken, "handleVerifyToken");
+async function getCommunityServices(request, env, user, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page")) || 1;
+    const limit = parseInt(url.searchParams.get("limit")) || 10;
+    const status = url.searchParams.get("status");
+    const type = url.searchParams.get("type");
+    const search = url.searchParams.get("search");
+    const created_by = url.searchParams.get("created_by");
+    const offset = (page - 1) * limit;
+    let whereConditions = [];
+    let params = [];
+    let paramIndex = 1;
+    if (status) {
+      whereConditions.push(`status = ?${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+    if (type) {
+      whereConditions.push(`type = ?${paramIndex}`);
+      params.push(type);
+      paramIndex++;
+    }
+    if (search) {
+      whereConditions.push(`(title LIKE ?${paramIndex} OR description LIKE ?${paramIndex + 1})`);
+      params.push(`%${search}%`, `%${search}%`);
+      paramIndex += 2;
+    }
+    if (created_by) {
+      whereConditions.push(`created_by = ?${paramIndex}`);
+      params.push(parseInt(created_by));
+      paramIndex++;
+    }
+    if (user.role === "lecturer" || user.role === "dosen") {
+      if (!created_by) {
+        whereConditions.push(`created_by = ?${paramIndex}`);
+        params.push(user.userId);
+        paramIndex++;
+      }
+    }
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+    const countQuery = `SELECT COUNT(*) as total FROM community_services ${whereClause}`;
+    const countResult = await env.DB.prepare(countQuery).bind(...params).first();
+    const total = countResult.total;
+    const query = `
+      SELECT 
+        cs.*,
+        u.name as creator_name,
+        u.email as creator_email
+      FROM community_services cs
+      LEFT JOIN users u ON cs.created_by = u.id
+      ${whereClause}
+      ORDER BY cs.created_at DESC
+      LIMIT ?${paramIndex} OFFSET ?${paramIndex + 1}
+    `;
+    params.push(limit, offset);
+    const result = await env.DB.prepare(query).bind(...params).all();
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: result.results || [],
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error fetching community services:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to fetch community services",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(getCommunityServices, "getCommunityServices");
+async function getCommunityService(id, env, user, corsHeaders) {
+  try {
+    const query = `
+      SELECT 
+        cs.*,
+        u.name as creator_name,
+        u.email as creator_email
+      FROM community_services cs
+      LEFT JOIN users u ON cs.created_by = u.id
+      WHERE cs.id = ?1
+    `;
+    const result = await env.DB.prepare(query).bind(id).first();
+    if (!result) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service not found"
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if ((user.role === "lecturer" || user.role === "dosen") && result.created_by !== user.userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Access denied"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: result
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error fetching community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to fetch community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(getCommunityService, "getCommunityService");
+async function createCommunityService(request, env, user, corsHeaders) {
+  try {
+    const data = await request.json();
+    const requiredFields = ["title", "description", "type", "budget", "start_date", "end_date"];
+    for (const field of requiredFields) {
+      if (!data[field]) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Field ${field} is required`
+          }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "application/json"
+            }
+          }
+        );
+      }
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const query = `
+      INSERT INTO community_services (
+        title, description, type, budget, start_date, end_date,
+        objectives, target_audience, expected_outcomes, location,
+        status, created_by, created_at, updated_at
+      ) VALUES (
+        ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'draft', ?11, ?12, ?13
+      )
+    `;
+    const result = await env.DB.prepare(query).bind(
+      data.title,
+      data.description,
+      data.type,
+      data.budget,
+      data.start_date,
+      data.end_date,
+      data.objectives || "",
+      data.target_audience || "",
+      data.expected_outcomes || "",
+      data.location || "",
+      user.userId,
+      now,
+      now
+    ).run();
+    if (!result.success) {
+      throw new Error("Failed to create community service");
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          id: result.meta.last_row_id,
+          ...data,
+          status: "draft",
+          created_by: user.userId,
+          created_at: now,
+          updated_at: now
+        }
+      }),
+      {
+        status: 201,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error creating community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to create community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(createCommunityService, "createCommunityService");
+async function updateCommunityService(id, request, env, user, corsHeaders) {
+  try {
+    const existingService = await env.DB.prepare("SELECT * FROM community_services WHERE id = ?1").bind(id).first();
+    if (!existingService) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service not found"
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if ((user.role === "lecturer" || user.role === "dosen") && existingService.created_by !== user.userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Access denied"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const data = await request.json();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const query = `
+      UPDATE community_services SET
+        title = ?1,
+        description = ?2,
+        type = ?3,
+        budget = ?4,
+        start_date = ?5,
+        end_date = ?6,
+        objectives = ?7,
+        target_audience = ?8,
+        expected_outcomes = ?9,
+        location = ?10,
+        updated_at = ?11
+      WHERE id = ?12
+    `;
+    const result = await env.DB.prepare(query).bind(
+      data.title || existingService.title,
+      data.description || existingService.description,
+      data.type || existingService.type,
+      data.budget || existingService.budget,
+      data.start_date || existingService.start_date,
+      data.end_date || existingService.end_date,
+      data.objectives || existingService.objectives,
+      data.target_audience || existingService.target_audience,
+      data.expected_outcomes || existingService.expected_outcomes,
+      data.location || existingService.location,
+      now,
+      id
+    ).run();
+    if (!result.success) {
+      throw new Error("Failed to update community service");
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          ...existingService,
+          ...data,
+          updated_at: now
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error updating community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to update community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(updateCommunityService, "updateCommunityService");
+async function deleteCommunityService(id, env, user, corsHeaders) {
+  try {
+    const existingService = await env.DB.prepare("SELECT * FROM community_services WHERE id = ?1").bind(id).first();
+    if (!existingService) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service not found"
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if ((user.role === "lecturer" || user.role === "dosen") && existingService.created_by !== user.userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Access denied"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if (existingService.status !== "draft") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Cannot delete submitted community service"
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const result = await env.DB.prepare("DELETE FROM community_services WHERE id = ?1").bind(id).run();
+    if (!result.success) {
+      throw new Error("Failed to delete community service");
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Community service deleted successfully"
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error deleting community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to delete community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(deleteCommunityService, "deleteCommunityService");
+async function submitCommunityService(id, env, user, corsHeaders) {
+  try {
+    const existingService = await env.DB.prepare("SELECT * FROM community_services WHERE id = ?1").bind(id).first();
+    if (!existingService) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service not found"
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if ((user.role === "lecturer" || user.role === "dosen") && existingService.created_by !== user.userId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Access denied"
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    if (existingService.status !== "draft") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service already submitted"
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const result = await env.DB.prepare(
+      "UPDATE community_services SET status = ?1, submitted_at = ?2, updated_at = ?3 WHERE id = ?4"
+    ).bind("submitted", now, now, id).run();
+    if (!result.success) {
+      throw new Error("Failed to submit community service");
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Community service submitted successfully",
+        data: {
+          ...existingService,
+          status: "submitted",
+          submitted_at: now,
+          updated_at: now
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error submitting community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to submit community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(submitCommunityService, "submitCommunityService");
+async function reviewCommunityService(id, request, env, user, corsHeaders) {
+  try {
+    if (!["super_admin", "lppm_admin", "reviewer"].includes(user.role)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Access denied. Only admins and reviewers can review community services."
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const existingService = await env.DB.prepare("SELECT * FROM community_services WHERE id = ?1").bind(id).first();
+    if (!existingService) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Community service not found"
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const data = await request.json();
+    const { status, review_notes } = data;
+    if (!["approved", "rejected", "needs_revision"].includes(status)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid status. Must be approved, rejected, or needs_revision"
+        }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const result = await env.DB.prepare(
+      "UPDATE community_services SET status = ?1, review_notes = ?2, reviewed_by = ?3, reviewed_at = ?4, updated_at = ?5 WHERE id = ?6"
+    ).bind(status, review_notes || "", user.userId, now, now, id).run();
+    if (!result.success) {
+      throw new Error("Failed to review community service");
+    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Community service reviewed successfully",
+        data: {
+          ...existingService,
+          status,
+          review_notes: review_notes || "",
+          reviewed_by: user.userId,
+          reviewed_at: now,
+          updated_at: now
+        }
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error reviewing community service:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to review community service",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+}
+__name(reviewCommunityService, "reviewCommunityService");
+async function verifyAuth(request, env) {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return null;
+    }
+    const token = authHeader.substring(7);
+    const payload = await verifyJWT(token, env.JWT_SECRET);
+    if (!payload) {
+      return null;
+    }
+    const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?1").bind(payload.userId).first();
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user.id,
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      department: user.department
+    };
+  } catch (error) {
+    console.error("Auth verification error:", error);
+    return null;
+  }
+}
+__name(verifyAuth, "verifyAuth");
 async function handleRefreshToken(request, env) {
   return new Response(
     JSON.stringify({ message: "Token refresh not implemented yet" }),
@@ -350,20 +1013,73 @@ async function handleResearchRoutes(request, env, path, corsHeaders) {
 }
 __name(handleResearchRoutes, "handleResearchRoutes");
 async function handleServiceRoutes(request, env, path, corsHeaders) {
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: "Community service not implemented yet",
-      message: "This endpoint will be implemented in the next phase"
-    }),
-    {
-      status: 501,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
+  const method = request.method;
+  const url = new URL(request.url);
+  let user = await verifyAuth(request, env);
+  if (!user && env.ENVIRONMENT === "development") {
+    user = {
+      id: 1,
+      userId: 1,
+      email: "test@example.com",
+      name: "Test User",
+      role: "lecturer",
+      department: "Computer Science"
+    };
+  }
+  if (!user) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
+    );
+  }
+  try {
+    if (path === "/service" && method === "GET") {
+      return await getCommunityServices(request, env, user, corsHeaders);
+    } else if (path === "/service" && method === "POST") {
+      return await createCommunityService(request, env, user, corsHeaders);
+    } else if (path.match(/^\/service\/\d+$/) && method === "GET") {
+      const id = parseInt(path.split("/")[2]);
+      return await getCommunityService(id, env, user, corsHeaders);
+    } else if (path.match(/^\/service\/\d+$/) && method === "PUT") {
+      const id = parseInt(path.split("/")[2]);
+      return await updateCommunityService(id, request, env, user, corsHeaders);
+    } else if (path.match(/^\/service\/\d+$/) && method === "DELETE") {
+      const id = parseInt(path.split("/")[2]);
+      return await deleteCommunityService(id, env, user, corsHeaders);
+    } else if (path.match(/^\/service\/\d+\/submit$/) && method === "POST") {
+      const id = parseInt(path.split("/")[2]);
+      return await submitCommunityService(id, env, user, corsHeaders);
+    } else if (path.match(/^\/service\/\d+\/review$/) && method === "POST") {
+      const id = parseInt(path.split("/")[2]);
+      return await reviewCommunityService(id, request, env, user, corsHeaders);
     }
-  );
+    return new Response("Not Found", {
+      status: 404,
+      headers: corsHeaders
+    });
+  } catch (error) {
+    console.error("Service route error:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Internal server error",
+        message: error.message
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
 }
 __name(handleServiceRoutes, "handleServiceRoutes");
 async function handleDocumentRoutes(request, env, path, corsHeaders) {
@@ -1079,7 +1795,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-Wc4wzj/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-Rue6c0/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -1111,7 +1827,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-Wc4wzj/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-Rue6c0/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;

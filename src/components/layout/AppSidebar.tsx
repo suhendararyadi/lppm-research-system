@@ -53,6 +53,8 @@ import {
   User,
   GraduationCap,
   School,
+  PlusCircle,
+  FolderOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 
@@ -78,14 +80,14 @@ const navigation: NavItem[] = [
       {
         title: 'Buat Proposal',
         href: '/dosen/proposal/create',
-        icon: FileText,
-        roles: ['lecturer'],
+        icon: PlusCircle,
+        roles: ['lecturer', 'dosen'],
       },
       {
         title: 'Proposal Saya',
         href: '/dosen/proposal',
-        icon: FileText,
-        roles: ['lecturer'],
+        icon: FolderOpen,
+        roles: ['lecturer', 'dosen'],
       },
       {
         title: 'Semua Proposal',
@@ -107,21 +109,28 @@ const navigation: NavItem[] = [
     icon: Heart,
     children: [
       {
-        title: 'Program Saya',
-        href: '/service/my-programs',
+        title: 'Buat Proposal',
+        href: '/dosen/pengabdian/create',
+        icon: FileText,
+        roles: ['lecturer', 'dosen'],
+      },
+      {
+        title: 'Proposal Saya',
+        href: '/dosen/pengabdian',
         icon: Heart,
+        roles: ['lecturer', 'dosen'],
       },
       {
         title: 'Semua Program',
         href: '/service/programs',
         icon: Heart,
-        roles: ['admin', 'reviewer'],
+        roles: ['super_admin', 'lppm_admin', 'reviewer'],
       },
       {
         title: 'Review',
         href: '/service/review',
         icon: UserCheck,
-        roles: ['reviewer', 'admin'],
+        roles: ['reviewer', 'super_admin', 'lppm_admin'],
         badge: '2',
       },
       {
