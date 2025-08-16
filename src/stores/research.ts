@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ResearchProposal, ResearchFilter, SortOption, PaginatedResponse } from '@/types';
-import { apiClient } from '@/lib/api/client';
+import apiClient from '@/lib/api/client';
 
 interface ResearchState {
   proposals: ResearchProposal[];
@@ -56,19 +56,13 @@ export const useResearchStore = create<ResearchState>((set, get) => ({
       
       const { pagination, filters, sort } = get();
       
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-        search: filters.search,
-        status: filters.status?.join(','),
-        type: filters.type?.join(','),
-        department: filters.department,
-        year: filters.year,
-        sort_field: sort.field,
-        sort_direction: sort.direction,
-      };
-      
-      const response = await apiClient.getResearchProposals(params);
+      const response = await apiClient.getResearchProposals(
+        pagination.page,
+        pagination.limit,
+        filters,
+        sort.field,
+        sort.direction
+      );
       
       if (response.success && response.data) {
         const { data, pagination: paginationData } = response.data as PaginatedResponse<ResearchProposal>;

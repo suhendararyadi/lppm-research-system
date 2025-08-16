@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// .wrangler/tmp/bundle-QmdgzI/checked-fetch.js
+// .wrangler/tmp/bundle-LU68nF/checked-fetch.js
 var urls = /* @__PURE__ */ new Set();
 function checkURL(request, init) {
   const url = request instanceof URL ? request : new URL(
@@ -392,7 +392,11 @@ async function getCommunityService(id, env, user, corsHeaders) {
         }
       );
     }
+    console.log("getCommunityService - result.created_by:", result.created_by, "type:", typeof result.created_by);
+    console.log("getCommunityService - user.id:", user.id, "type:", typeof user.id);
+    console.log("getCommunityService - comparison result:", result.created_by !== user.id);
     if ((user.role === "lecturer" || user.role === "dosen") && result.created_by !== user.id) {
+      console.log("Access denied - created_by does not match user.id");
       return new Response(
         JSON.stringify({
           success: false,
@@ -407,10 +411,15 @@ async function getCommunityService(id, env, user, corsHeaders) {
         }
       );
     }
+    const serviceData = {
+      ...result,
+      created_by: String(result.created_by)
+    };
+    console.log("getCommunityService - serviceData.created_by after conversion:", serviceData.created_by, "type:", typeof serviceData.created_by);
     return new Response(
       JSON.stringify({
         success: true,
-        data: result
+        data: serviceData
       }),
       {
         status: 200,
@@ -481,7 +490,7 @@ async function createCommunityService(request, env, user, corsHeaders) {
       data.target_audience || "",
       data.expected_outcomes || data.expected_impact || "",
       data.location || "",
-      user.userId,
+      user.id,
       now,
       now
     ).run();
@@ -1800,7 +1809,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-QmdgzI/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-LU68nF/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -1832,7 +1841,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-QmdgzI/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-LU68nF/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;

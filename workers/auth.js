@@ -431,7 +431,12 @@ async function getCommunityService(id, env, user, corsHeaders) {
     }
 
     // Check permissions
+    console.log('getCommunityService - result.created_by:', result.created_by, 'type:', typeof result.created_by);
+    console.log('getCommunityService - user.id:', user.id, 'type:', typeof user.id);
+    console.log('getCommunityService - comparison result:', result.created_by !== user.id);
+    
     if ((user.role === 'lecturer' || user.role === 'dosen') && result.created_by !== user.id) {
+      console.log('Access denied - created_by does not match user.id');
       return new Response(
         JSON.stringify({
           success: false,
@@ -447,10 +452,18 @@ async function getCommunityService(id, env, user, corsHeaders) {
       );
     }
 
+    // Ensure created_by is returned as string for frontend consistency
+    const serviceData = {
+      ...result,
+      created_by: String(result.created_by)
+    };
+    
+    console.log('getCommunityService - serviceData.created_by after conversion:', serviceData.created_by, 'type:', typeof serviceData.created_by);
+    
     return new Response(
       JSON.stringify({
         success: true,
-        data: result
+        data: serviceData
       }),
       {
         status: 200,
@@ -526,7 +539,7 @@ async function createCommunityService(request, env, user, corsHeaders) {
       data.target_audience || '',
       data.expected_outcomes || data.expected_impact || '',
       data.location || '',
-      user.userId,
+      user.id,
       now,
       now
     ).run();

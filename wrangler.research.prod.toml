@@ -1,0 +1,21 @@
+name = "lppm-research-worker-prod"
+main = "workers/research.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database - Production
+[[d1_databases]]
+binding = "DB"
+database_name = "lppm-research-db-prod"
+database_id = "564b5b65-8be1-4e23-8fad-73b1f0454ae6"
+
+# KV Storage
+[[kv_namespaces]]
+binding = "CACHE"
+id = "220cff7124574b8c877bca9230f72e6a"
+
+# Environment Variables - Production
+[vars]
+JWT_SECRET = "your-production-jwt-secret-key"
+ENCRYPTION_KEY = "your-production-encryption-key"
+ENVIRONMENT = "production"

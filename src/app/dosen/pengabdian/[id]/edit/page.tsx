@@ -311,6 +311,10 @@ export default function EditPengabdianPage() {
   }
 
   // Check if user can edit this service
+  console.log('Frontend - service.created_by:', service.created_by, 'type:', typeof service.created_by);
+  console.log('Frontend - user?.id:', user?.id, 'type:', typeof user?.id);
+  console.log('Frontend - comparison result:', service.created_by !== user?.id);
+  
   if (service.created_by !== user?.id) {
     return (
       <DashboardLayout>
